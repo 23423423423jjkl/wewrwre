@@ -1,1 +1,12 @@
 name = Commerce Yandex.Market
+description = Allows you to integrate your online store with Yandex Market
+core = 7.x
+package = Commerce (Yandex Market)
+configure = admin/commerce/yandex-market
+
+dependencies[] = ctools
+dependencies[] = entity_token
+dependencies[] = commerce_product
+
+files[] = includes/commerce_yandex_market.autocomplete.inc
+files[] = includes/commerce_yandex_market.generator.inc
