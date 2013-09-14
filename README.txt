@@ -31,6 +31,8 @@ Go to admin/commerce/yandex-market to add the display(s) which produce(s)
 data for XML-file.
 Run cron. Otherwise you can't see the file yandex-market.xml
 Check for file on yandex-market.xml and enjoy!
+Set the path to the XML file and check it is possible at the time
+of registration at Yandex.Market
 
 -- CONTACT --
 
