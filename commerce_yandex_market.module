@@ -44,15 +44,24 @@ function commerce_yandex_market_menu() {
   );
 
   $items['admin/commerce/yandex-market/add'] = array(
-    'title' => 'Add a display',
+    'title' => 'Add a product display',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('commerce_yandex_market_add_form'),
     'access arguments' => array('administer commerce yandex market'),
     'type' => MENU_LOCAL_ACTION,
   );
 
+  $items['admin/commerce/yandex-market/import'] = array(
+    'title' => 'Import a product display',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('commerce_yandex_market_import_form'),
+    'access arguments' => array('administer commerce yandex market'),
+    'file' => 'commerce_yandex_market.admin.inc',
+    'type' => MENU_LOCAL_ACTION,
+  );
+
   $items['admin/commerce/yandex-market/edit/%commerce_yandex_market_cache'] = array(
-    'title' => 'Edit display',
+    'title' => 'Edit a product display',
     'page callback' => 'commerce_yandex_market_edit_page',
     'page arguments' => array(4),
     'access arguments' => array('administer commerce yandex market'),
@@ -60,14 +69,14 @@ function commerce_yandex_market_menu() {
   );
 
   $items['admin/commerce/yandex-market/delete/%commerce_yandex_market_cache'] = array(
-    'title' => 'Delete display',
+    'title' => 'Delete a product display',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('commerce_yandex_market_delete_form', 4),
     'access arguments' => array('administer commerce yandex market'),
   );
 
   $items['admin/commerce/yandex-market/disable/%commerce_yandex_market_cache'] = array(
-    'title' => 'Disable display',
+    'title' => 'Disable a product display',
     'page callback' => 'commerce_yandex_market_disable_display_page',
     'page arguments' => array(4),
     'access arguments' => array('administer commerce yandex market'),
@@ -76,11 +85,20 @@ function commerce_yandex_market_menu() {
   );
 
   $items['admin/commerce/yandex-market/enable/%commerce_yandex_market_cache'] = array(
-    'title' => 'Enable display',
+    'title' => 'Enable a product display',
     'page callback' => 'commerce_yandex_market_enable_display_page',
     'page arguments' => array(4),
     'access arguments' => array('administer commerce yandex market'),
     'type' => MENU_CALLBACK,
+    'file' => 'commerce_yandex_market.admin.inc',
+  );
+
+  $items['admin/commerce/yandex-market/export/%commerce_yandex_market_cache'] = array(
+    'title callback' => 'commerce_yandex_market_title_callback',
+    'title arguments' => array(4),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('commerce_yandex_market_export_form', 4),
+    'access arguments' => array('administer commerce yandex market'),
     'file' => 'commerce_yandex_market.admin.inc',
   );
 
@@ -350,7 +368,7 @@ function _commerce_yandex_market_form_step_basic_settings(&$form, &$form_state) 
 
   $form['display_type'] = array(
     '#type' => 'select',
-    '#title' => t('Display'),
+    '#title' => t('Product Display'),
     '#description' => t('Node type used as product display for export to Yandex Market'),
     '#required' => TRUE,
     '#options' => $options,
@@ -426,9 +444,9 @@ function _commerce_yandex_market_form_step_export_settings(&$form, &$form_state)
     );
 
     $form['export_table'][$i]['attr_title'] = array(
-      '#markup' => format_string('@title (@required)', array(
+      '#markup' => format_string('@title !required', array(
         '@title' => $value['title'],
-        '@required' => $value['required'] ? t('Required') : t('Not required'),
+        '!required' => $value['required'] ? theme('form_required_marker') : '',
       )),
     );
 
@@ -461,9 +479,8 @@ function _commerce_yandex_market_form_step_export_settings(&$form, &$form_state)
     );
 
     $form['export_table'][$unique_hash]['attr_title'] = array(
-      '#markup' => format_string('@title (@required)', array(
+      '#markup' => format_string('@title', array(
         '@title' => t('Param'),
-        '@required' => t('Not required'),
       )),
     );
 
@@ -975,7 +992,10 @@ function commerce_yandex_market_save($display, $status = COMMERCE_YANDEX_MARKET_
   if ($result = drupal_write_record('commerce_yandex_market', $display)) {
     // Remove data from ctools object cache table.
     commerce_yandex_market_object_cache_clear($display->display_type);
+    return TRUE;
   }
+
+  return FALSE;
 }
 /**
  * Update display.
@@ -993,7 +1013,9 @@ function commerce_yandex_market_update($display) {
   if ($result = drupal_write_record('commerce_yandex_market', $display, 'display_id')) {
     // Remove data from ctools object cache table.
     commerce_yandex_market_object_cache_clear($display->display_type);
+    return TRUE;
   }
+  return FALSE;
 }
 
 /**
@@ -1067,6 +1089,26 @@ function commerce_yandex_market_delete($display_type) {
     ->execute();
 
   commerce_yandex_market_object_cache_clear($display_type);
+}
+
+/**
+ * Ctools export callback.
+ *
+ * @param $display
+ *   Display type to export.
+ * @param $indent
+ * @return string
+ */
+function commerce_yandex_market_export($display, $indent) {
+  $data = array(
+    'available' => $display->available,
+    'export_attributes' => $display->export_attributes,
+    'export_values' => $display->export_values,
+  );
+
+  $display->data = serialize($data);
+
+  return ctools_export_object('commerce_yandex_market', $display, $indent);
 }
 
 /**

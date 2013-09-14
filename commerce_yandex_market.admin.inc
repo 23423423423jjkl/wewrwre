@@ -36,6 +36,10 @@ function commerce_yandex_market_product_list($form, &$form_state) {
       'title' => t('Delete'),
       'href' => 'admin/commerce/yandex-market/delete/' . $display->display_type,
     );
+    $operations[] = array(
+      'title' => t('Export'),
+      'href' => 'admin/commerce/yandex-market/export/' . $display->display_type,
+    );
 
     if ($display->status) {
       $operations[] = array(
@@ -158,7 +162,7 @@ function commerce_yandex_market_validate_cost($form, &$form_state) {
 }
 
 /**
- * Form for editing display.
+ * Form for editing product display.
  */
 function commerce_yandex_market_edit_page($display) {
 
@@ -181,7 +185,7 @@ function commerce_yandex_market_edit_page($display) {
 }
 
 /**
- * Ajax callback for display EDIT links.
+ * Ajax callback for product display EDIT links.
  */
 function commerce_yandex_market_edit_form_ajax_links($display, $step) {
 
@@ -201,7 +205,7 @@ function commerce_yandex_market_edit_form_ajax_links($display, $step) {
 }
 
 /**
- * Disable display.
+ * Disable product display.
  */
 function commerce_yandex_market_disable_display_page($display) {
   $display->status = COMMERCE_YANDEX_MARKET_DISABLED;
@@ -213,7 +217,7 @@ function commerce_yandex_market_disable_display_page($display) {
 }
 
 /**
- * Enable display.
+ * Enable product display.
  */
 function commerce_yandex_market_enable_display_page($display) {
   $display->status = COMMERCE_YANDEX_MARKET_ENABLED;
@@ -222,4 +226,92 @@ function commerce_yandex_market_enable_display_page($display) {
   drupal_set_message(t('Display %name was enabled', array('%name' => $display->display_type)));
 
   drupal_goto('admin/commerce/yandex-market');
+}
+
+/**
+ * Title callback for export product display page.
+ */
+function commerce_yandex_market_title_callback($display) {
+  return t('Export a product display "!display_type"', array('!display_type' => $display->display_type));
+}
+
+/**
+ * Export product display.
+ */
+function commerce_yandex_market_export_form($form, $form_state, $display) {
+  ctools_include('export');
+
+  $code = ctools_export_crud_export('commerce_yandex_market', $display);
+  $lines = substr_count($code, "\n");
+
+  $form['export'] = array(
+    '#title' => t('Export data'),
+    '#type' => 'textarea',
+    '#value' => $code,
+    '#rows' => $lines,
+    '#description' => t('Copy the export text and paste it into import area.'),
+  );
+
+  return $form;
+}
+
+/**
+ * Import product display.
+ */
+function commerce_yandex_market_import_form($form, $form_state) {
+
+  $form['import'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Paste code here to import a product display'),
+  );
+
+  $form['actions'] = array(
+    '#type' => 'action',
+  );
+
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Import'),
+  );
+
+  return $form;
+}
+
+/**
+ * Submit callback for commerce_yandex_market_import_form.
+ */
+function commerce_yandex_market_import_form_submit($form, &$form_state) {
+  $code = $form_state['values']['import'];
+  ctools_include('export');
+
+  $display_raw = ctools_export_crud_import('commerce_yandex_market', $code);
+  if (is_string($display_raw)) {
+    form_error($form['import'], t('Unable to get an import from the code. Errors reported: @errors', array('@errors' => $display_raw)));
+    $form_state['rebuild'] = TRUE;
+    return;
+  }
+
+  // Because we get raw object from Ctools we should prepare it before saving.
+  $display = commerce_yandex_market_load_prepare((array) $display_raw);
+  $display_original = commerce_yandex_market_load_by_name($display->display_type);
+
+  // If there is a product display object with the same product type,
+  // delete the original so that this one writes properly.
+  if (!empty($display_original)) {
+    commerce_yandex_market_delete($display->display_type);
+  }
+
+  if (commerce_yandex_market_save($display, $display->status)) {
+    if (!empty($display_original)) {
+      drupal_set_message(filter_xss(t('Product display "!display_type" was successfully updated.', array('!display_type' => $display->display_type))));
+    }
+    else {
+      drupal_set_message(filter_xss(t('Product display "!display_type" was successfully imported.', array('!display_type' => $display->display_type))));
+    }
+  }
+  else {
+    form_error($form['import'], t('Could not import a product display.'));
+  }
+
+  $form_state['redirect'] = 'admin/commerce/yandex-market';
 }
